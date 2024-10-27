@@ -56,14 +56,13 @@ class unit_tcn(nn.Module):
                               stride=(stride, 1))
 
         self.bn = nn.BatchNorm2d(out_channels)
-        self.silu = nn.SiLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         conv_init(self.conv)
         bn_init(self.bn, 1)
 
     def forward(self, x):
         x = self.bn(self.conv(x))
         return x
-    
 
 class unit_gcn_3d(nn.Module):
 
@@ -168,7 +167,7 @@ class unit_gcn_qkv(nn.Module):
         self.soft = nn.Softmax(-2)
         self.tan = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
-        self.silu = nn.SiLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -209,7 +208,7 @@ class unit_gcn_qkv(nn.Module):
 
         y = self.bn(y)
         y += self.down(x)
-        y = self.silu(y)
+        y = self.relu(y)
 
         if self.attention:
             # spatial attention
@@ -226,7 +225,7 @@ class unit_gcn_qkv(nn.Module):
 
             # channel attention
             se = y.mean(-1).mean(-1)
-            se1 = self.silu(self.fc1c(se))
+            se1 = self.relu(self.fc1c(se))
             se2 = self.sigmoid(self.fc2c(se1))
             y = y * se2.unsqueeze(-1).unsqueeze(-1) + y
             # a3 = se2.unsqueeze(-1).unsqueeze(-1)
@@ -245,7 +244,7 @@ class TCN_SA3D_unit(nn.Module):
         self.gcn1 = Multi_Head_Spatial_Attention_3D(in_channels, out_channels, 4, A, win)
         self.tcn1 = unit_tcn(out_channels, out_channels, stride=stride)
         #self.tcn1 = unit_tcn_causal(out_channels, out_channels, stride=stride)
-        self.silu = nn.SiLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         self.attention = attention
 
         if not residual:
@@ -259,7 +258,7 @@ class TCN_SA3D_unit(nn.Module):
 
     def forward(self, x):
 
-        y = self.silu(self.tcn1(self.gcn1(x)) + self.residual(x))
+        y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
 
         return y
 
@@ -272,7 +271,7 @@ class TCN_SA_unit(nn.Module):
         self.gcn1 = Multi_Head_Spatial_Attention(in_channels, out_channels, 4, A)
         self.tcn1 = unit_tcn(out_channels, out_channels, stride=stride)
         #self.tcn1 = unit_tcn_causal(out_channels, out_channels, stride=stride)
-        self.silu = nn.SiLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         self.attention = attention
 
         if not residual:
@@ -286,18 +285,18 @@ class TCN_SA_unit(nn.Module):
 
     def forward(self, x):
 
-        y = self.silu(self.tcn1(self.gcn1(x)) + self.residual(x))
+        y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
 
         return y
 
 
 class TCNC_GCN3D_unit(nn.Module):
-    def __init__(self, in_channels, out_channels, A, stride=1, residual=True, adaptive=True, attention=True, activation=nn.SiLU()):
+    def __init__(self, in_channels, out_channels, A, stride=1, residual=True, adaptive=True, attention=True):
         super(TCNC_GCN3D_unit, self).__init__()
         self.gcn1 = unit_gcn_3d(in_channels, out_channels, A, adaptive=adaptive, attention=attention)
         #self.tcn1 = unit_tcn(out_channels, out_channels, stride=stride)
         self.tcn1 = unit_tcn_causal(out_channels, out_channels, stride=stride)
-        self.silu = nn.SiLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         self.attention = attention
 
         if not residual:
@@ -311,7 +310,7 @@ class TCNC_GCN3D_unit(nn.Module):
 
     def forward(self, x):
 
-        y = self.silu(self.tcn1(self.gcn1(x)) + self.residual(x))
+        y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
 
         return y
 
@@ -322,7 +321,7 @@ class TCN_GCN3D_unit(nn.Module):
         self.gcn1 = unit_gcn_3d(in_channels, out_channels, A, adaptive=adaptive, attention=attention)
         self.tcn1 = unit_tcn(out_channels, out_channels, stride=stride)
         #self.tcn1 = unit_tcn_causal(out_channels, out_channels, stride=stride)
-        self.silu = nn.SiLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         self.attention = attention
 
         if not residual:
@@ -336,7 +335,7 @@ class TCN_GCN3D_unit(nn.Module):
 
     def forward(self, x):
 
-        y = self.silu(self.tcn1(self.gcn1(x)) + self.residual(x))
+        y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
 
         return y
 
@@ -346,7 +345,7 @@ class TAMod_GCN_unit(nn.Module):
         super(TAMod_GCN_unit, self).__init__()
         self.gcn1 = unit_gcn(in_channels, out_channels, A, adaptive=adaptive, attention=attention)
         self.tcn1 = unit_ta_mod(out_channels, out_channels,T=T)
-        self.silu = nn.SiLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         self.attention = attention
 
         if not residual:
@@ -360,18 +359,18 @@ class TAMod_GCN_unit(nn.Module):
 
     def forward(self, x):
 
-        y = self.silu(self.tcn1(self.gcn1(x)) + self.residual(x))
+        y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
 
         return y
 
 
 class TCNC_GCN_unit(nn.Module):
-    def __init__(self, in_channels, out_channels, A, stride=1, residual=True, adaptive=True, attention=True, activation=nn.SiLU()):
+    def __init__(self, in_channels, out_channels, A, stride=1, residual=True, adaptive=True, attention=True):
         super(TCNC_GCN_unit, self).__init__()
         self.gcn1 = unit_gcn_qkv(in_channels, out_channels, A, adaptive=adaptive, attention=attention)
         #self.tcn1 = unit_tcn(out_channels, out_channels, stride=stride)
         self.tcn1 = unit_tcn_causal(out_channels, out_channels, stride=stride)
-        self.silu = nn.SiLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         self.attention = attention
 
         if not residual:
@@ -385,17 +384,17 @@ class TCNC_GCN_unit(nn.Module):
 
     def forward(self, x):
 
-        y = self.silu(self.tcn1(self.gcn1(x)) + self.residual(x))
+        y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
 
         return y
 
 class TCN_GCN_unit(nn.Module):
-    def __init__(self, in_channels, out_channels, A, stride=1, residual=True, adaptive=True, attention=True, activation=nn.SiLU()):
+    def __init__(self, in_channels, out_channels, A, stride=1, residual=True, adaptive=True, attention=True):
         super(TCN_GCN_unit, self).__init__()
         self.gcn1 = unit_gcn_qkv(in_channels, out_channels, A, adaptive=adaptive, attention=attention)
         self.tcn1 = unit_tcn(out_channels, out_channels, stride=stride)
         #self.tcn1 = unit_tcn_causal(out_channels, out_channels, stride=stride)
-        self.silu = nn.SiLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         self.attention = attention
 
         if not residual:
@@ -409,21 +408,21 @@ class TCN_GCN_unit(nn.Module):
 
     def forward(self, x):
 
-        y = self.silu(self.tcn1(self.gcn1(x)) + self.residual(x))
+        y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
 
         return y
 
 class TA_GCN3D_unit_k3d(nn.Module):
-    def __init__(self, in_channels, out_channels, T, A, stride=1, residual=True, adaptive=True, attention=True, activation=nn.SiLU(),inherent=1,head=4,norm='ln',dropout=0.1,with_cls_token=0,pe=1,win=3):
+    def __init__(self, in_channels, out_channels, T, A, stride=1, residual=True, adaptive=True, attention=True,inherent=1,head=4,norm='ln',dropout=0.0,with_cls_token=0,pe=1,win=3):
         super(TA_GCN3D_unit_k3d, self).__init__()
 
         self.win = win
         self.gcn1 = unit_gcn_3d(in_channels, out_channels, A, adaptive=adaptive, attention=attention,win=win)
         #self.tcn1 = unit_tcn(out_channels, out_channels, stride=stride)
-        self.ta1 = Multi_Head_Temporal_Attention(out_channels,head,T//win,self.gcn1.A_tile,inherent,norm,,with_cls_token,pe)
+        self.ta1 = Multi_Head_Temporal_Attention(out_channels,head,T//win,self.gcn1.A_tile,inherent,norm,dropout,with_cls_token,pe)
 
         #self.tcn1 = unit_tcn_causal(out_channels, out_channels, stride=stride)
-        self.silu = nn.SiLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         self.attention = attention
 
         if not residual:
@@ -444,18 +443,18 @@ class TA_GCN3D_unit_k3d(nn.Module):
         z = z.reshape(B,-1,T,V)
 
         z += self.residual(x)
-        y = self.silu(z)
+        y = self.relu(z)
 
         return y,cls_token
 
 class TA_GCN3D_unit(nn.Module):
-    def __init__(self, in_channels, out_channels, T, A, stride=1, residual=True, adaptive=True, attention=True, activation=nn.SiLU(),inherent=1,head=4,norm='ln',dropout=0.1,with_cls_token=0,pe=1):
+    def __init__(self, in_channels, out_channels, T, A, stride=1, residual=True, adaptive=True, attention=True,inherent=1,head=4,norm='ln',dropout=0.0,with_cls_token=0,pe=1):
         super(TA_GCN3D_unit, self).__init__()
         self.gcn1 = unit_gcn_3d(in_channels, out_channels, A, adaptive=adaptive, attention=attention)
         #self.tcn1 = unit_tcn(out_channels, out_channels, stride=stride)
         self.ta1 = Multi_Head_Temporal_Attention(out_channels,head,T,A,inherent,norm,dropout,with_cls_token,pe)
         #self.tcn1 = unit_tcn_causal(out_channels, out_channels, stride=stride)
-        self.silu = nn.SiLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         self.attention = attention
 
         if not residual:
@@ -472,19 +471,19 @@ class TA_GCN3D_unit(nn.Module):
         z,cls_token = self.ta1(self.gcn1(x))
 
         z += self.residual(x)
-        y = self.silu(z)
+        y = self.relu(z)
 
         #return y,cls_token
         return y
 
 class TA_GCN_unit(nn.Module):
-    def __init__(self, in_channels, out_channels, T, A, stride=1, residual=True, adaptive=True, attention=True,inherent=0,head=4,norm='ln',dropout=0.1,with_cls_token=0,pe=1):
+    def __init__(self, in_channels, out_channels, T, A, stride=1, residual=True, adaptive=True, attention=True,inherent=0,head=4,norm='ln',dropout=0.0,with_cls_token=0,pe=1):
         super(TA_GCN_unit, self).__init__()
         self.gcn1 = unit_gcn(in_channels, out_channels, A, adaptive=adaptive, attention=attention)
         #self.tcn1 = unit_tcn(out_channels, out_channels, stride=stride)
         #self.tcn1 = unit_tcn_causal(out_channels, out_channels, stride=stride)
         self.ta1 = Multi_Head_Temporal_Attention(out_channels,head,T,A,inherent,norm,dropout,with_cls_token,pe)
-        self.silu = nn.SiLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         self.attention = attention
 
         if not residual:
@@ -496,11 +495,11 @@ class TA_GCN_unit(nn.Module):
             self.residual = unit_tcn(in_channels, out_channels, kernel_size=1, stride=stride)
 
     def forward(self, x):
-        # y = self.silu(self.tcn1(self.gcn1(x)) + self.residual(x))
+        #y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
 
         z,cls_token = self.ta1(self.gcn1(x))
         z += self.residual(x)
-        y = self.silu(z)
+        y = self.relu(z)
 
         return y,cls_token
 
@@ -513,7 +512,7 @@ class TA_SA_unit(nn.Module):
         #self.tcn1 = unit_tcn_causal(out_channels, out_channels, stride=stride)
         self.ta1 = Multi_Head_Temporal_Attention(out_channels,8)
         self.sa1 = Multi_Head_Spatial_Attention(in_channels,out_channels,4)
-        self.silu = nn.SiLU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
         self.attention = attention
 
         if not residual:
@@ -525,14 +524,14 @@ class TA_SA_unit(nn.Module):
             self.residual = unit_tcn(in_channels, out_channels, kernel_size=1, stride=stride)
 
     def forward(self, x):
-        #y = self.silu(self.tcn1(self.gcn1(x)) + self.residual(x))
-        y = self.silu(self.ta1(self.sa1(x)) + self.residual(x))
+        #y = self.relu(self.tcn1(self.gcn1(x)) + self.residual(x))
+        y = self.relu(self.ta1(self.sa1(x)) + self.residual(x))
         return y
 
 
 class Model(nn.Module):
     def __init__(self, num_class=60, num_point=25, num_person=2, graph=None, graph_args=dict(), in_channels=3,
-                 drop_out=0.2, adaptive=True, attention=True, activation=nn.SiLU()):
+                 drop_out=0, adaptive=True, attention=True):
         super(Model, self).__init__()
 
         if graph is None:
@@ -549,31 +548,31 @@ class Model(nn.Module):
         #3D-TA all
         if 1:
             self.l1 = TCNC_GCN_unit(3, 64, A, residual=False, adaptive=adaptive, attention=attention)
-            self.l2 = TCNC_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention, activation=activation)
-            self.l3 = TCNC_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention, activation=activation)
-            self.l4 = TCNC_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention, activation=activation)
-            self.l5 = TCNC_GCN_unit(64, 128, A, stride=2, adaptive=adaptive, attention=attention, activation=activation)
-            self.l6 = TA_GCN3D_unit(128, 128, 150, A, adaptive=adaptive, attention=attention, activation=activation,inherent=0,head=1,dropout=0.1,pe=0)
-            self.l7 = TA_GCN3D_unit(128, 128, 150, A, adaptive=adaptive, attention=attention, activation=activation,inherent=0,head=1,dropout=0.1,pe=0)
-            self.l8 = TCNC_GCN3D_unit(128, 256, A, stride=2, adaptive=adaptive, attention=attention, activation=activation)
-            self.l9 = TA_GCN3D_unit(256, 256, 75, A, adaptive=adaptive, attention=attention, activation=activation,inherent=0,head=1,dropout=0.1,pe=0)
-            self.l10 = TA_GCN3D_unit(256, 256, 75, A, adaptive=adaptive, attention=attention, activation=activation,inherent=0,head=1,dropout=0.1,pe=0)
+            self.l2 = TCNC_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention)
+            self.l3 = TCNC_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention)
+            self.l4 = TCNC_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention)
+            self.l5 = TCNC_GCN_unit(64, 128, A, stride=2, adaptive=adaptive, attention=attention)
+            self.l6 = TA_GCN3D_unit(128, 128, 150, A, adaptive=adaptive, attention=attention,inherent=0,head=1,dropout=0.0,pe=0)
+            self.l7 = TA_GCN3D_unit(128, 128, 150, A, adaptive=adaptive, attention=attention,inherent=0,head=1,dropout=0.0,pe=0)
+            self.l8 = TCNC_GCN3D_unit(128, 256, A, stride=2, adaptive=adaptive, attention=attention)
+            self.l9 = TA_GCN3D_unit(256, 256, 75, A, adaptive=adaptive, attention=attention,inherent=0,head=1,dropout=0.0,pe=0)
+            self.l10 = TA_GCN3D_unit(256, 256, 75, A, adaptive=adaptive, attention=attention,inherent=0,head=1,dropout=0.0,pe=0)
             output_emb = 256
 
         #Default
         if 0:
             attention = True
             adaptive = True
-            self.l1 = TCN_GCN_unit(3, 64, A, residual=False, adaptive=adaptive, attention=attention, activation=activation)
-            self.l2 = TCN_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention, activation=activation)
-            self.l3 = TCN_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention, activation=activation)
-            self.l4 = TCN_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention, activation=activation)
-            self.l5 = TCN_GCN_unit(64, 128, A, stride=2, adaptive=adaptive, attention=attention, activation=activation)
-            self.l6 = TCN_GCN_unit(128, 128, A, adaptive=adaptive, attention=attention, activation=activation)
-            self.l7 = TCN_GCN_unit(128, 128, A, adaptive=adaptive, attention=attention, activation=activation)
-            self.l8 = TCN_GCN_unit(128, 256, A, stride=2, adaptive=adaptive, attention=attention, activation=activation)
-            self.l9 = TCN_GCN_unit(256, 256, A, adaptive=adaptive, attention=attention, activation=activation)
-            self.l10 = TCN_GCN_unit(256, 256, A, adaptive=adaptive, attention=attention, activation=activation)
+            self.l1 = TCN_GCN_unit(3, 64, A, residual=False, adaptive=adaptive, attention=attention)
+            self.l2 = TCN_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention)
+            self.l3 = TCN_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention)
+            self.l4 = TCN_GCN_unit(64, 64, A, adaptive=adaptive, attention=attention)
+            self.l5 = TCN_GCN_unit(64, 128, A, stride=2, adaptive=adaptive, attention=attention)
+            self.l6 = TCN_GCN_unit(128, 128, A, adaptive=adaptive, attention=attention)
+            self.l7 = TCN_GCN_unit(128, 128, A, adaptive=adaptive, attention=attention)
+            self.l8 = TCN_GCN_unit(128, 256, A, stride=2, adaptive=adaptive, attention=attention)
+            self.l9 = TCN_GCN_unit(256, 256, A, adaptive=adaptive, attention=attention)
+            self.l10 = TCN_GCN_unit(256, 256, A, adaptive=adaptive, attention=attention)
             output_emb = 256
 
         self.emb_dim = num_point * 256
